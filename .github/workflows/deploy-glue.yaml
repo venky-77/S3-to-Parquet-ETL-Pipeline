@@ -1,25 +1,34 @@
-name: Deploy S3 to S3 Glue Job
+name: Upload Glue Scripts to S3
 
+# -------------------------------------------------
+# Triggers
+# -------------------------------------------------
 on:
   push:
     branches:
       - master
-  workflow_dispatch:   # Manual run button
+    paths:
+      - "glue-script/**"    # Only run when scripts change
+  workflow_dispatch:        # Manual trigger
 
+# -------------------------------------------------
+# Job Definition
+# -------------------------------------------------
 jobs:
-  deploy:
+  upload:
+    name: Upload Glue Scripts
     runs-on: ubuntu-latest
 
     steps:
-      # -----------------------------
-      # 1. Checkout code
-      # -----------------------------
-      - name: Checkout repository
+      # ---------------------------------------------
+      # 1. Checkout repository
+      # ---------------------------------------------
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      # -----------------------------
-      # 2. Configure AWS Credentials
-      # -----------------------------
+      # ---------------------------------------------
+      # 2. Configure AWS credentials
+      # ---------------------------------------------
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -27,10 +36,10 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      # -----------------------------
-      # 3. Upload Glue Script to S3
-      # -----------------------------
-      - name: Upload Glue script to S3
+      # ---------------------------------------------
+      # 3. Upload Glue scripts to S3
+      # ---------------------------------------------
+      - name: Sync Glue scripts to S3
         run: |
-          aws s3 cp glue-script/s3_to_s3_copy.py \
-          s3://storm-glue-scripts-2026/scripts/s3_to_s3_copy.py
+          aws s3 sync glue-script/ \
+          s3://storm-glue-scripts-2026/scripts/

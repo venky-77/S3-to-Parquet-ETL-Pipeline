@@ -7,7 +7,7 @@ Description: >
   CloudFormation template to create S3 to S3
   data transfer using AWS Glue PySpark job 
   
-parameters:
+Parameters:
 
   ProjectName:
     Type: String
@@ -54,8 +54,9 @@ parameters:
     Description: Target S3 bucket for output data
 
   GlueTempDir:
-    Type: Srting
-    Default:
+    Type: String
+    Default: s3://storm-source-data-dumps-2026/sample_data/derived_data/temp/
+    Description: Glue temporary directory in S3
 
 # ============================================================
 # RESOURCES
@@ -66,15 +67,33 @@ Resources:
 
   # Source S3 Bucket
   SourceS3Bucket:
-    Type: AWS::S3:Bucket
+    Type: AWS::S3::Bucket
     Properties:
       BucketName: !Ref SourceBucketName
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Owner
+          Value: !Ref Owner
+        - Key: Purpose
+          Value: SourceData
 
   # Target S3 Bucket
   TargetS3Bucket:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Ref TragetBucketName  # Output bucket where transformed data is stored
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Owner
+          Value: !Ref Owner
+        - Key: Purpose
+          Value: ProcessedData
 
   # AWS Glue Job Definition
   GlueJob:
@@ -123,26 +142,26 @@ Resources:
 # OUTPUTS
 # Values returned after stack creation
 # ============================================================
-OutPuts:
+Outputs:
+
+  Environment:
+    Description: Deployment environment
+    Value: !Ref Environment
 
   SourceBucket:
-    Description: Source S3 Bucket Name
+    Description: Source S3 bucket
     Value: !Ref SourceS3Bucket
 
   TargetBucket:
-    Description: Target S3 bucket name
+    Description: Target S3 bucket
     Value: !Ref TargetS3Bucket
 
   GlueJobName:
-    Description: Name of the Glue Job created
+    Description: Glue Job name
     Value: !Ref GlueJob
 
-  GlueScriptPath:
-    Description: S3 path of Glue PySpark script
-    Value: !Ref GlueScriptS3Path
-
-  GlueRoleUsed:
-    Description: IAM role used by Glue Job
+  GlueRole:
+    Description: IAM role used by Glue
     Value: !Ref GlueRoleArn
 
 
