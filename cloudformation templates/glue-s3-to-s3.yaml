@@ -1,8 +1,11 @@
 AWSTemplateFormatVersion: "2010-09-09"
-
+# ============================================================
+# CloudFormation Template
+# S3 → S3 Data Transfer using AWS Glue PySpark
+# ============================================================
 Description: >
-  CloudFormation template to create
-  an S3 → S3 data transfer using AWS Glue PySpark Job
+  CloudFormation template to create S3 to S3
+  data transfer using AWS Glue PySpark job 
   
 parameters:
 
@@ -32,10 +35,133 @@ parameters:
 
   GlueRoleArn:
     Type: String
-    Default:
+    Default: arn:aws:iam::297041784012:role/Glue-service-role
     Description: Existing IAM Role ARN for Glue Job
 
   GlueScriptS3Path:
     Type: String
     Default: s3://storm-glue-scripts-2026/scripts/
+    Description: 3 path where Glue PySpark script is stored
+
+  SourceBucketName:
+    Type: String
+    Default: s3://storm-source-data-dumps-2026/sample_data/landing_zone_data/
+    Description: Source S3 bucket for input data
+
+  TargetBucketName:
+    Type: String
+    Default: s3://storm-source-data-dumps-2026/sample_data/derived_data/
+    Description: Target S3 bucket for output data
+
+  GlueTempDir:
+    Type: Srting
+    Default:
+
+# ============================================================
+# RESOURCES
+# Actual AWS resources created by CloudFormation
+# ============================================================
+
+Resources:
+
+  # Source S3 Bucket
+  SourceS3Bucket:
+    Type: AWS::S3:Bucket
+    Properties:
+      BucketName: !Ref SourceBucketName
+
+  # Target S3 Bucket
+  TargetS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref TragetBucketName  # Output bucket where transformed data is stored
+
+  # AWS Glue Job Definition
+  GlueJob:
+    Type: AWS::Glue::Job
+    Properties:
+      Name: !Ref GlueJobName
+      Role: !Ref GlueRoleArn
+      GlueVersion: "4.0"      # Glue Runtime Configuration
+      WorkType: G.1X          #Worker size, G.1X = standard worker (cost-effective)
+      NumberOfWorkers: 2      # Total workers used by job
+      TimeOut: 60             # Max execution time (minutes)
+      MaxRetries: 1           # Auto-retry if job fails
+      ExecutionProperty:
+        MaxConcurrentRuns: 1  # Prevents parallel runs of same job
+      # Glue Job Command
+      Commands:
+        Name: glueetl
+        ScriptLocation: !Ref GlueScriptPath
+        PythonVersion: "3"    # Python runtime version
+      DefaultArguments:
+        # ---- Glue system args ----
+        "--job-language": "python"                           # Tells Glue this is Python-based
+        "--enable-continuous-cloudwatch-log": "true"         # Enables real-time logs in CloudWatch
+        "--enable-metrics": "true"                           # Enables Glue job metrics
+        "--TempDir": !Ref GlueTempDir                        # Temporary S3 directory for Glue internals
+
+        # ---- Custom ENV variables ----
+        "--ENV": !Ref Environment
+        "--PROJECT_NAME": !Ref ProjectName
+        "--OWNER": !Ref Owner           # Used for logging / auditing
+        "--SOURCE_S3_PATH": !Sub "s3://${SourceBucketName}/input/"
+        "--TARGET_S3_PATH": !Sub "s3://${TargetBucketName}/output/"
+        # Output data path
+        # Used inside PySpark script
+
+    # Glue Job Tags
+      Tags:
+        Project: !Ref ProjectName
+        Environment: !Ref Environment
+        Owner: !Ref Owner
+        Service: Glue
+        DataFlow: S3-to-S3
+        Team: Storm-data
+
+# ============================================================
+# OUTPUTS
+# Values returned after stack creation
+# ============================================================
+OutPuts:
+
+  SourceBucket:
+    Description: Source S3 Bucket Name
+    Value: !Ref SourceS3Bucket
+
+  TargetBucket:
+    Description: Target S3 bucket name
+    Value: !Ref TargetS3Bucket
+
+  GlueJobName:
+    Description: Name of the Glue Job created
+    Value: !Ref GlueJob
+
+  GlueScriptPath:
+    Description: S3 path of Glue PySpark script
+    Value: !Ref GlueScriptS3Path
+
+  GlueRoleUsed:
+    Description: IAM role used by Glue Job
+    Value: !Ref GlueRoleArn
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
