@@ -1,186 +1,98 @@
 AWSTemplateFormatVersion: "2010-09-09"
-# ============================================================
-# CloudFormation Template
-# S3 → S3 Data Transfer using AWS Glue PySpark
-# ============================================================
+
 Description: >
-  CloudFormation template to create S3 to S3
-  data transfer using AWS Glue PySpark job 
-  
+  S3 to S3 data transfer using AWS Glue PySpark job
+
 Parameters:
 
   ProjectName:
     Type: String
     Default: s3-to-s3-glue
-    Description: Project or application name
 
   Environment:
     Type: String
-    AllowedValues:
-      - dev
-      - tset
-      - prod
+    AllowedValues: [dev, test, prod]
     Default: dev
-    Description: Deployment environment
 
   Owner:
     Type: String
     Default: storm-data-engineer
-    Description: Owner of the resources
 
   GlueJobName:
     Type: String
-    Default: Strom-s3-Glue
-    Description:  Glue Job Name
+    Default: storm-s3-glue-job
 
   GlueRoleArn:
     Type: String
+    Description: Existing IAM Role ARN for Glue
     Default: arn:aws:iam::297041784012:role/Glue-service-role
-    Description: Existing IAM Role ARN for Glue Job
 
   GlueScriptS3Path:
     Type: String
-    Default: s3://storm-glue-scripts-2026/scripts/
-    Description: 3 path where Glue PySpark script is stored
+    Default: s3://storm-glue-scripts-2026/scripts/s3_to_s3_copy.py
 
-  SourceBucketName:
+  SourceS3Path:
     Type: String
     Default: s3://storm-source-data-dumps-2026/sample_data/landing_zone_data/
-    Description: Source S3 bucket for input data
 
-  TargetBucketName:
+  TargetS3Path:
     Type: String
     Default: s3://storm-source-data-dumps-2026/sample_data/derived_data/
-    Description: Target S3 bucket for output data
-
-  GlueTempDir:
-    Type: String
-    Default: s3://storm-source-data-dumps-2026/sample_data/derived_data/temp/
-    Description: Glue temporary directory in S3
-
-# ============================================================
-# RESOURCES
-# Actual AWS resources created by CloudFormation
-# ============================================================
 
 Resources:
 
-  # Source S3 Bucket
-  SourceS3Bucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Ref SourceBucketName
-      Tags:
-        - Key: Project
-          Value: !Ref ProjectName
-        - Key: Environment
-          Value: !Ref Environment
-        - Key: Owner
-          Value: !Ref Owner
-        - Key: Purpose
-          Value: SourceData
-
-  # Target S3 Bucket
-  TargetS3Bucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Ref TragetBucketName  # Output bucket where transformed data is stored
-      Tags:
-        - Key: Project
-          Value: !Ref ProjectName
-        - Key: Environment
-          Value: !Ref Environment
-        - Key: Owner
-          Value: !Ref Owner
-        - Key: Purpose
-          Value: ProcessedData
-
-  # AWS Glue Job Definition
   GlueJob:
     Type: AWS::Glue::Job
     Properties:
       Name: !Ref GlueJobName
       Role: !Ref GlueRoleArn
-      GlueVersion: "4.0"      # Glue Runtime Configuration
-      WorkType: G.1X          #Worker size, G.1X = standard worker (cost-effective)
-      NumberOfWorkers: 2      # Total workers used by job
-      TimeOut: 60             # Max execution time (minutes)
-      MaxRetries: 1           # Auto-retry if job fails
+
+      GlueVersion: "4.0"
+      WorkerType: G.1X
+      NumberOfWorkers: 2
+      Timeout: 60
+      MaxRetries: 1
+
       ExecutionProperty:
-        MaxConcurrentRuns: 1  # Prevents parallel runs of same job
-      # Glue Job Command
-      Commands:
+        MaxConcurrentRuns: 1
+
+      Command:
         Name: glueetl
-        ScriptLocation: !Ref GlueScriptPath
-        PythonVersion: "3"    # Python runtime version
+        ScriptLocation: !Ref GlueScriptS3Path
+        PythonVersion: "3"
+
       DefaultArguments:
-        # ---- Glue system args ----
-        "--job-language": "python"                           # Tells Glue this is Python-based
-        "--enable-continuous-cloudwatch-log": "true"         # Enables real-time logs in CloudWatch
-        "--enable-metrics": "true"                           # Enables Glue job metrics
-        "--TempDir": !Ref GlueTempDir                        # Temporary S3 directory for Glue internals
+        "--job-language": python
+        "--enable-continuous-cloudwatch-log": "true"
+        "--enable-metrics": "true"
 
-        # ---- Custom ENV variables ----
+        "--SOURCE_S3_PATH": !Ref SourceS3Path
+        "--TARGET_S3_PATH": !Ref TargetS3Path
         "--ENV": !Ref Environment
-        "--PROJECT_NAME": !Ref ProjectName
-        "--OWNER": !Ref Owner           # Used for logging / auditing
-        "--SOURCE_S3_PATH": !Sub "s3://${SourceBucketName}/input/"
-        "--TARGET_S3_PATH": !Sub "s3://${TargetBucketName}/output/"
-        # Output data path
-        # Used inside PySpark script
+        "--PROJECT": !Ref ProjectName
+        "--OWNER": !Ref Owner
 
-    # Glue Job Tags
       Tags:
         Project: !Ref ProjectName
         Environment: !Ref Environment
         Owner: !Ref Owner
         Service: Glue
         DataFlow: S3-to-S3
-        Team: Storm-data
 
-# ============================================================
-# OUTPUTS
-# Values returned after stack creation
-# ============================================================
 Outputs:
 
-  Environment:
-    Description: Deployment environment
-    Value: !Ref Environment
-
-  SourceBucket:
-    Description: Source S3 bucket
-    Value: !Ref SourceS3Bucket
-
-  TargetBucket:
-    Description: Target S3 bucket
-    Value: !Ref TargetS3Bucket
-
   GlueJobName:
-    Description: Glue Job name
+    Description: Glue Job Name
     Value: !Ref GlueJob
 
-  GlueRole:
-    Description: IAM role used by Glue
-    Value: !Ref GlueRoleArn
+  GlueScriptPath:
+    Description: Glue script S3 path
+    Value: !Ref GlueScriptS3Path
 
+  SourcePath:
+    Description: Source S3 data path
+    Value: !Ref SourceS3Path
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  TargetPath:
+    Description: Target S3 data path
+    Value: !Ref TargetS3Path
