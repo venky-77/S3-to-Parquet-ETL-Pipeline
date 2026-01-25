@@ -1,7 +1,8 @@
 AWSTemplateFormatVersion: "2010-09-09"
 
 Description: >
-  S3 to S3 data transfer using AWS Glue PySpark job
+  This project implements a serverless, event-driven data engineering pipeline on AWS.
+  The pipeline automatically ingests raw data files uploaded to Amazon S3.  
 
 Parameters:
 
@@ -35,9 +36,18 @@ Parameters:
     Type: String
     Default: s3://storm-source-data-dumps-2026/sample_data/landing_zone_data/
 
+  SourcePrefix:
+    Type: String
+    Default: sample_data/landing_zone_data/
+
   TargetS3Path:
     Type: String
     Default: s3://storm-source-data-dumps-2026/sample_data/derived_data/
+
+  EventBridgeInvokeGlueRoleArn:
+    Type: String
+    Default: arn:aws:iam::297041784012:role/eventbridge-glue-trigger
+
 
 Resources:
 
@@ -79,6 +89,29 @@ Resources:
         Service: Glue
         DataFlow: S3-to-S3
 
+
+  S3ToGlueEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Trigger Glue job when data arrives in S3
+      EventPattern:
+        source:
+          - aws.s3
+        detail-type:
+          - Object Created
+        detail:
+          bucket:
+            name:
+              - !Ref SourceBucketName
+          object:
+            key:
+              - prefix: !Ref SourcePrefix
+
+      Targets:
+        - Id: GlueJobTarget
+          Arn: !Sub arn:aws:glue:${AWS::Region}:${AWS::AccountId}:job/${GlueJobName}
+          RoleArn: !GetAtt EventBridgeInvokeGlueRole.Arn
+
 Outputs:
 
   GlueJobName:
@@ -96,3 +129,7 @@ Outputs:
   TargetPath:
     Description: Target S3 data path
     Value: !Ref TargetS3Path
+
+  EventRuleName:
+    Description: EventBridge Rule Name
+    Value: !Ref S3ToGlueEventRule
