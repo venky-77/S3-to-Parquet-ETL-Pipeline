@@ -1,0 +1,41 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >
+  CloudFormation template to create
+  an S3 → S3 data transfer using AWS Glue PySpark Job
+  
+parameters:
+
+  ProjectName:
+    Type: String
+    Default: s3-to-s3-glue
+    Description: Project or application name
+
+  Environment:
+    Type: String
+    AllowedValues:
+      - dev
+      - tset
+      - prod
+    Default: dev
+    Description: Deployment environment
+
+  Owner:
+    Type: String
+    Default: storm-data-engineer
+    Description: Owner of the resources
+
+  GlueJobName:
+    Type: String
+    Default: Strom-s3-Glue
+    Description:  Glue Job Name
+
+  GlueRoleArn:
+    Type: String
+    Default:
+    Description: Existing IAM Role ARN for Glue Job
+
+  GlueScriptS3Path:
+    Type: String
+    Default: s3://storm-glue-scripts-2026/scripts/
+
