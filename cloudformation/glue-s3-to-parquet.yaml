@@ -21,7 +21,7 @@ Parameters:
 
   GlueJobName:
     Type: String
-    Default: storm-s3-glue-job
+    Default: storm-s3-parquet-job
 
   GlueRoleArn:
     Type: String
@@ -44,11 +44,6 @@ Parameters:
     Type: String
     Default: s3://storm-source-data-dumps-2026/sample_data/derived_data/
 
-  EventBridgeInvokeGlueRoleArn:
-    Type: String
-    Default: arn:aws:iam::297041784012:role/eventbridge-glue-trigger
-
-
 Resources:
 
   GlueJob:
@@ -62,7 +57,6 @@ Resources:
       NumberOfWorkers: 2
       Timeout: 60
       MaxRetries: 1
-
       ExecutionProperty:
         MaxConcurrentRuns: 1
 
@@ -87,30 +81,26 @@ Resources:
         Environment: !Ref Environment
         Owner: !Ref Owner
         Service: Glue
-        DataFlow: S3-to-S3
+        DataFlow: S3-to-Parquet
 
-
-  S3ToGlueEventRule:
-    Type: AWS::Events::Rule
+  GlueWorkflow:
+    Type: AWS::Glue::Workflow
     Properties:
-      Description: Trigger Glue job when data arrives in S3
-      EventPattern:
-        source:
-          - aws.s3
-        detail-type:
-          - Object Created
-        detail:
-          bucket:
-            name:
-              - !Ref SourceBucketName
-          object:
-            key:
-              - prefix: !Ref SourcePrefix
+      Name: !Sub ${ProjectName}-Workflow-${Environment}
 
-      Targets:
-        - Id: GlueJobTarget
-          Arn: !Sub arn:aws:glue:${AWS::Region}:${AWS::AccountId}:job/${GlueJobName}
-          RoleArn: !GetAtt EventBridgeInvokeGlueRole.Arn
+  GlueTrigger:
+    Type: AWS::Glue::Trigger
+    Properties:
+      Name: !Sub ${ProjectName}-S3Trigger
+      Type: EVENT
+      WorkflowName: !Ref GlueWorkflow
+      Actions:
+        - JobName: !Ref GlueJobName
+      EventBatchingCondition:
+        BatchSize: 1
+        BatchWindow: 5
+      Description: Trigger Glue job when files arrive in S3
+    DependsOn: GlueJob
 
 Outputs:
 
@@ -129,7 +119,3 @@ Outputs:
   TargetPath:
     Description: Target S3 data path
     Value: !Ref TargetS3Path
-
-  EventRuleName:
-    Description: EventBridge Rule Name
-    Value: !Ref S3ToGlueEventRule
