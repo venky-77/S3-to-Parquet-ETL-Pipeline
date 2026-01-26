@@ -25,14 +25,11 @@ df = (spark.read
       .option("header", True)        # First row as header
       .option("inferSchema", True)   # Auto-detect datatypes
       .csv(BUCKET_SRC))              # Path in S3
-
 # 🔹 Step 2: Drop unwanted columns
 df = df.drop("Phone 2", "Subscription")
 
 # 🔹 Step 3: Write cleaned CSV back to another S3 location
-df.write.parquet("s3a://storm-source-data-dumps-2026/sample_data/derived_data/",
-             header=True,
-             mode="overwrite")
+df.write.mode("overwrite").parquet("s3a://storm-source-data-dumps-2026/sample_data/derived_data/")
 
 # Commit job (important in AWS Glue)
 job.commit()
