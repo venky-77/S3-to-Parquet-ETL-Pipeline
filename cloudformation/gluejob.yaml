@@ -15,17 +15,12 @@ Parameters:
     AllowedValues: [dev, test, prod]
     Default: dev
 
-  Owner:
-    Type: String
-    Default: storm-data-engineer
-
   GlueJobName:
     Type: String
     Default: storm-s3-parquet-job
 
   GlueRoleArn:
     Type: String
-    Description: Existing IAM Role ARN for Glue
     Default: arn:aws:iam::297041784012:role/Glue-service-role
 
   GlueScriptS3Path:
@@ -36,30 +31,21 @@ Parameters:
     Type: String
     Default: s3://storm-source-data-dumps-2026/sample_data/landing_zone_data/
 
-  SourcePrefix:
-    Type: String
-    Default: sample_data/landing_zone_data/
-
   TargetS3Path:
     Type: String
     Default: s3://storm-source-data-dumps-2026/sample_data/derived_data/
 
 Resources:
-
   GlueJob:
     Type: AWS::Glue::Job
     Properties:
       Name: !Ref GlueJobName
       Role: !Ref GlueRoleArn
-
       GlueVersion: "4.0"
       WorkerType: G.1X
       NumberOfWorkers: 2
       Timeout: 60
       MaxRetries: 1
-      ExecutionProperty:
-        MaxConcurrentRuns: 1
-
       Command:
         Name: glueetl
         ScriptLocation: !Ref GlueScriptS3Path
@@ -83,30 +69,18 @@ Resources:
         Service: Glue
         DataFlow: S3-to-Parquet
 
-  GlueWorkflow:
-    Type: AWS::Glue::Workflow
-    Properties:
-      Name: !Sub ${ProjectName}-Workflow-${Environment}
-
-  GlueTrigger:
-    Type: AWS::Glue::Trigger
-    Properties:
-      Name: !Sub ${ProjectName}-S3Trigger
-      Type: EVENT
-      WorkflowName: !Ref GlueWorkflow
-      Actions:
-        - JobName: !Ref GlueJobName
-      EventBatchingCondition:
-        BatchSize: 1
-        BatchWindow: 5
-      Description: Trigger Glue job when files arrive in S3
-    DependsOn: GlueJob
 
 Outputs:
 
   GlueJobName:
-    Description: Glue Job Name
     Value: !Ref GlueJob
+    Export:
+      Name: !Sub ${ProjectName}-${Environment}-GlueJobName
+
+  GlueJobArn:
+    Value: !Sub arn:aws:glue:${AWS::Region}:${AWS::AccountId}:job/${GlueJobName}
+    Export:
+      Name: !Sub ${ProjectName}-${Environment}-GlueJobArn
 
   GlueScriptPath:
     Description: Glue script S3 path

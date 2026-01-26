@@ -1,0 +1,105 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Reusable EventBridge + Lambda stack.
+  Triggers an existing Glue Job when a file is uploaded to S3 landing zone.
+  Uses ONLY existing IAM roles.
+
+Parameters:
+
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, test, prod]
+
+  ExistingBucketName:
+    Type: String
+    Description: Existing S3 bucket name
+    Default: storm-source-data-dumps-2026
+
+  SourcePrefix:
+    Type: String
+    Description: S3 landing zone prefix
+    Default: sample_data/landing_zone_data/
+
+  ExistingLambdaRoleArn:
+    Type: String
+    Description: Existing Lambda execution role ARN
+    Default: arn:aws:iam::297041784012:role/storm-lambda-glue-trigger-role
+
+Resources:
+
+  # -------------------------
+  # Lambda to start Glue job
+  # -------------------------
+  GlueLauncherLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub s3-to-glue-trigger-${Environment}
+      Runtime: python3.9
+      Handler: index.handler
+      Role: !Ref ExistingLambdaRoleArn
+      Timeout: 60
+      Code:
+        ZipFile: |
+          import boto3
+          import os
+
+          glue = boto3.client("glue")
+
+          def handler(event, context):
+              job_name = os.environ["GLUE_JOB_NAME"]
+              response = glue.start_job_run(JobName=job_name)
+              return {
+                  "status": "started",
+                  "job": job_name,
+                  "run_id": response["JobRunId"]
+              }
+
+      Environment:
+        Variables:
+          GLUE_JOB_NAME: !ImportValue s3-to-s3-glue-dev-GlueJobName
+
+  # -------------------------
+  # EventBridge Rule
+  # -------------------------
+  S3ToGlueRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub s3-object-created-trigger-${Environment}
+      Description: Trigger Lambda when file arrives in landing zone
+      EventPattern:
+        source:
+          - aws.s3
+        detail-type:
+          - Object Created
+        detail:
+          bucket:
+            name:
+              - !Ref ExistingBucketName
+          object:
+            key:
+              - prefix: !Ref SourcePrefix
+      Targets:
+        - Arn: !GetAtt GlueLauncherLambda.Arn
+          Id: GlueLambdaTarget
+
+  # -------------------------
+  # Allow EventBridge → Lambda
+  # -------------------------
+  LambdaInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref GlueLauncherLambda
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt S3ToGlueRule.Arn
+
+Outputs:
+
+  LambdaName:
+    Description: Lambda function name
+    Value: !Ref GlueLauncherLambda
+
+  EventRuleName:
+    Description: EventBridge rule name
+    Value: !Ref S3ToGlueRule
