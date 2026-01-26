@@ -1,0 +1,100 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >
+  Clean Glue setup.
+  Creates Glue Database and Glue Crawler.
+  Crawler scans S3 automatically every N minute.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: S3-to-Parquet-Glue-ETL
+
+  Environment:
+    Type: String
+    AllowedValues: [dev, test, prod]
+    Default: dev
+
+  GlueDatabaseName:
+    Type: String
+    Default: storm_data_catalog
+
+  GlueCrawlerName:
+    Type: String
+    Default: storm-s3-crawler
+
+  TargetS3Path:
+    Type: String
+    Description: S3 path to crawl
+    Default: s3://storm-source-data-dumps-2026/sample_data/derived_data/
+
+  GlueRoleArn:
+    Type: String
+    Description: Existing Glue IAM role
+    Default: arn:aws:iam::297041784012:role/storm-glue-job-role
+
+Resources:
+
+  # -----------------------------
+  # Glue Database
+  # -----------------------------
+  GlueDatabase:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        Name: !Ref GlueDatabaseName
+        Description: !Sub "${ProjectName}-${Environment} Glue database"
+
+  # -----------------------------
+  # Glue Crawler (AUTO – EVERY N MIN)
+  # -----------------------------
+  GlueCrawler:
+    Type: AWS::Glue::Crawler
+    Properties:
+      Name: !Sub ${GlueCrawlerName}-${Environment}
+      Role: !Ref GlueRoleArn
+      DatabaseName: !Ref GlueDatabaseName
+
+      Targets:
+        S3Targets:
+          - Path: !Ref TargetS3Path
+
+      # Required when using CRAWL_NEW_FOLDERS_ONLY
+      RecrawlPolicy:
+        RecrawlBehavior: CRAWL_NEW_FOLDERS_ONLY
+
+      SchemaChangePolicy:
+        UpdateBehavior: LOG
+        DeleteBehavior: LOG
+
+      Schedule:
+        ScheduleExpression: cron(0/5 * * * ? *)
+
+      Tags:
+        Project: !Ref ProjectName
+        Environment: !Ref Environment
+        Service: Glue
+        Purpose: DataCatalog
+
+Outputs:
+
+  GlueDatabaseName:
+    Description: Glue database name
+    Value: !Ref GlueDatabase
+
+  GlueCrawlerName:
+    Description: Glue crawler name
+    Value: !Ref GlueCrawler
+
+  GlueCrawlerArn:
+    Description: Glue crawler ARN
+    Value: !Sub arn:aws:glue:${AWS::Region}:${AWS::AccountId}:crawler/${GlueCrawlerName}-${Environment}
+
+  GlueCrawlerS3Path:
+    Description: S3 path crawled
+    Value: !Ref TargetS3Path
+
+  GlueCrawlerSchedule:
+    Description: Crawler schedule (cron)
+    Value: cron(0/5 * * * ? *)

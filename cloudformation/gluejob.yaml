@@ -8,7 +8,11 @@ Parameters:
 
   ProjectName:
     Type: String
-    Default: s3-to-s3-glue
+    Default: S3-to-Parquet-Glue-ETL
+
+  Owner:
+    Type: String
+    Default: venkydevops
 
   Environment:
     Type: String
@@ -21,11 +25,11 @@ Parameters:
 
   GlueRoleArn:
     Type: String
-    Default: arn:aws:iam::297041784012:role/Glue-service-role
+    Default: arn:aws:iam::297041784012:role/storm-glue-job-role
 
   GlueScriptS3Path:
     Type: String
-    Default: s3://storm-glue-scripts-2026/scripts/s3_to_s3_copy.py
+    Default: s3://storm-glue-scripts-2026/scripts/Glue_etl_script.py
 
   SourceS3Path:
     Type: String
@@ -45,7 +49,7 @@ Resources:
       WorkerType: G.1X
       NumberOfWorkers: 2
       Timeout: 60
-      MaxRetries: 1
+      MaxRetries: 0
       Command:
         Name: glueetl
         ScriptLocation: !Ref GlueScriptS3Path

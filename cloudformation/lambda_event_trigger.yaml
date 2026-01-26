@@ -57,7 +57,7 @@ Resources:
 
       Environment:
         Variables:
-          GLUE_JOB_NAME: !ImportValue s3-to-s3-glue-dev-GlueJobName
+          GLUE_JOB_NAME: !ImportValue S3-to-Parquet-Glue-ETL-dev-GlueJobName
 
   # -------------------------
   # EventBridge Rule
