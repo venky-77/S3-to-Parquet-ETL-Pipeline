@@ -32,5 +32,5 @@ jobs:
       # -----------------------------
       - name: Upload Glue script to S3
         run: |
-          aws s3 cp glue-script/s3_to_s3_copy.py \
-          s3://storm-glue-scripts-2026/scripts/s3_to_s3_copy.py
+          aws s3 cp glue-script/Glue_etl_script.py \
+          s3://storm-glue-scripts-2026/scripts/Glue_etl_script.py

@@ -24,7 +24,7 @@ Parameters:
   ExistingLambdaRoleArn:
     Type: String
     Description: Existing Lambda execution role ARN
-    Default: arn:aws:iam::297041784012:role/lambda_service_role
+    Default: arn:aws:iam::297041784012:role/storm-lambda-glue-trigger-role
 
 Resources:
 
